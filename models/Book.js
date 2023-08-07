@@ -1,9 +1,9 @@
 const mongoose = require('mongoose')
-
+const { documentsSchema } = require('./Documents')
 const Schema = mongoose.Schema
 
 const bookSchema = new Schema({
-    bookName: {
+    name: {
         type: String,
         required: true
     },
@@ -15,8 +15,16 @@ const bookSchema = new Schema({
         type: String,
         required: true
     },
-    releaseDate: {
-        type: Date,
+    image: {
+        type: String,
+        required: true
+    },
+    PDF: {
+        type: String,
+        required: true
+    },
+    description: {
+        type: String,
         required: true
     },
     price: {
