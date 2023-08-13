@@ -6,6 +6,10 @@ const documentsSchema = new Schema({
     path: {
         type: String,
         required: true
+    },
+    userID: {
+        type: String,
+        required: true
     }
 }, { timestamps: true })
 

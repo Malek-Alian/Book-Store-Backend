@@ -7,7 +7,8 @@ const multer = require('multer')
 const cors = require("cors")
 const fs = require('fs');
 const { Documents } = require('./models/Documents')
-var bodyParser = require('body-parser')
+const bodyParser = require('body-parser')
+const jwt = require('jsonwebtoken')
 
 const corsOptions = {
     origin: "http://localhost:3001",
@@ -37,22 +38,42 @@ const storage = multer.diskStorage({
 })
 const upload = multer({ storage }).single('bookImage')
 app.post('/upload/:id', upload, (req, res) => {
-    console.log('reqfile', req.file);
     if (!req.file) {
         return res.status(400).send({ error: "No file uploaded." });
     }
-
-    const document = new Document({
-        path: `./DocsData/${req.params.id}`
+    const documents = new Documents({
+        path: `./DocsData/${req.params.id}/${req.file.originalname}`,
+        userID: req.params.id,
     })
-
-    res.send({ file: req.file });
+    documents.save()
+        .then(result => res.send({ status: 200, success: true, data: result }))
+        .catch(err => res.send(err))
+})
+app.get('/download/:id', (req, res) => {
+    Documents.findById(req.params.id)
+        .then((result) => res.download(result.path))
+        .catch((err) => console.log(err))
 })
 app.post('/add-user', (req, res) => {
-    const user = new User(req.body)
-    user.save()
-        .then(result => res.send(result))
-        .catch(err => res.send(err))
+    User.find({ email: req.body.email })
+        .then((result) => {
+            if (result.length) {
+                res.send({ status: 407, success: false, errorMessage: 'Email already used' })
+            } else {
+                const user = new User(req.body)
+                user.save()
+                    .then(result => {
+                        const id = result.id
+                        const email = result.email
+                        const token = jwt.sign({ id, email }, 'jwtSecret', {
+                            expiresIn: 3600,
+                        })
+                        res.send({ status: 200, success: true, data: result, token: token })
+                    })
+                    .catch(err => res.send(err))
+            }
+        })
+        .catch((err) => console.log(err))
 })
 app.get('/books', (req, res) => {
     Book.find()
@@ -65,12 +86,42 @@ app.post('/books/add-book', (req, res) => {
         .then(result => res.send(result))
         .catch(err => res.send(err))
 })
+app.put('/update-book', (req, res) => {
+    Book.findByIdAndUpdate(req.body._id, req.body)
+        .then((result) => res.send(result))
+        .catch((err) => console.log(err))
+
+})
+app.delete('/delete-book/:id', async (req, res) => {
+    const deletedBook = await Book.findByIdAndDelete(req.params.id)
+        .then((result) => result)
+        .catch((err) => console.log(err))
+    Documents.findByIdAndDelete(deletedBook.image)
+        .then((result) => {
+            fs.unlink(`C:/Users/inspire/Desktop/Book Store${result.path.slice(1)}`, () => { })
+            res.send({ status: 200, success: true, data: result })
+        })
+        .catch((err) => console.log(err))
+})
+app.delete('/delete-document/:id', (req, res) => {
+    Documents.findByIdAndDelete(req.params.id)
+        .then((result) => {
+            fs.unlink(`C:/Users/inspire/Desktop/Book Store${result.path.slice(1)}`, () => { })
+            res.send({ status: 200, success: true, data: result })
+        })
+        .catch((err) => console.log(err))
+})
 app.post('/login', (req, res) => {
     User.find({ email: req.body.email })
         .then(result => {
             if (result.length > 0) {
                 if (result[0].password === req.body.password) {
-                    res.send({ status: true, data: result[0], statusCode: 200 })
+                    const id = result[0].id
+                    const email = result[0].email
+                    const token = jwt.sign({ id, email }, 'jwtSecret', {
+                        expiresIn: 3600,
+                    })
+                    res.send({ status: true, data: result[0], statusCode: 200, token: token })
                 } else {
                     res.send({ status: false, data: {}, statusCode: 400, errorMessage: 'Password does not match' });
                 }
@@ -79,4 +130,32 @@ app.post('/login', (req, res) => {
             }
         })
         .catch(err => console.log(err))
+})
+app.post('/sign-out', (req, res) => {
+    const id = req.body.id
+    const email = req.body.email
+    const token = jwt.sign({ id, email }, 'jwtSecret', {
+        expiresIn: 1,
+    })
+    res.send({ status: 200, success: true, token: token })
+})
+const verifyJWT = (req, res, next) => {
+    const token = req.body.token
+    if (token) {
+        jwt.verify(token, 'jwtSecret', (err, decoded) => {
+            if (!err) {
+                req.user = decoded
+                next()
+            } else {
+                res.send({ status: 409, success: false, errorMessage: 'Your session has been expired' })
+            }
+        })
+    } else {
+        res.send({ status: 408, success: false, errorMessage: 'You are not logged in' })
+    }
+}
+app.post('/checkUser', verifyJWT, (req, res) => {
+    User.findById(req.user.id)
+        .then(result => res.send({ status: 200, success: true, data: result }))
+        .catch(err => res.send(err))
 })

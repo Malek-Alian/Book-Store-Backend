@@ -1,5 +1,4 @@
 const mongoose = require('mongoose')
-const { documentsSchema } = require('./Documents')
 const Schema = mongoose.Schema
 
 const bookSchema = new Schema({
