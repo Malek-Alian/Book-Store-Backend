@@ -28,8 +28,13 @@ app.listen(3000)
 
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        fs.mkdirSync(`./DocsData/${req.params.id}`, { recursive: true })
-        cb(null, `./DocsData/${req.params.id}`)
+        if (req.body.folder === 'Profile Picture') {
+            fs.mkdirSync(`./DocsData/${req.params.id}/Profile Picture`, { recursive: true })
+            cb(null, `./DocsData/${req.params.id}/Profile Picture`)
+        } else {
+            fs.mkdirSync(`./DocsData/${req.params.id}/Books`, { recursive: true })
+            cb(null, `./DocsData/${req.params.id}/Books`)
+        }
     },
     filename: (req, file, cb) => {
         const fileName = file.originalname.replace(/\s+/g, '-')
@@ -42,7 +47,7 @@ app.post('/upload/:id', upload, (req, res) => {
         return res.status(400).send({ error: "No file uploaded." });
     }
     const documents = new Documents({
-        path: `./DocsData/${req.params.id}/${req.file.originalname}`,
+        path: req.body.folder === 'Profile Picture' ? `./DocsData/${req.params.id}/Profile Picture/${req.file.originalname}` : `./DocsData/${req.params.id}/Books/${req.file.originalname}`,
         userID: req.params.id,
     })
     documents.save()
@@ -53,6 +58,11 @@ app.get('/download/:id', (req, res) => {
     Documents.findById(req.params.id)
         .then((result) => res.download(result.path))
         .catch((err) => console.log(err))
+})
+app.get('/users', (req, res) => {
+    User.find()
+        .then(result => res.send(result))
+        .catch(err => res.send(err))
 })
 app.post('/add-user', (req, res) => {
     User.find({ email: req.body.email })
@@ -75,12 +85,17 @@ app.post('/add-user', (req, res) => {
         })
         .catch((err) => console.log(err))
 })
+app.put('/update-user', (req, res) => {
+    User.findByIdAndUpdate(req.body._id, req.body)
+        .then((result) => res.send(result))
+        .catch((err) => console.log(err))
+})
 app.get('/books', (req, res) => {
     Book.find()
         .then(result => res.send(result))
         .catch(err => res.send(err))
 })
-app.post('/books/add-book', (req, res) => {
+app.post('/add-book', (req, res) => {
     const book = new Book(req.body)
     book.save()
         .then(result => res.send(result))
@@ -90,7 +105,6 @@ app.put('/update-book', (req, res) => {
     Book.findByIdAndUpdate(req.body._id, req.body)
         .then((result) => res.send(result))
         .catch((err) => console.log(err))
-
 })
 app.delete('/delete-book/:id', async (req, res) => {
     const deletedBook = await Book.findByIdAndDelete(req.params.id)
@@ -158,4 +172,16 @@ app.post('/checkUser', verifyJWT, (req, res) => {
     User.findById(req.user.id)
         .then(result => res.send({ status: 200, success: true, data: result }))
         .catch(err => res.send(err))
+})
+app.post('/make-order', (req, res) => {
+    const order = new Order(req.body)
+    order.save()
+        .then((result) => res.send({ status: 200, success: true, data: result }))
+        .catch((err) => console.log(err))
+})
+app.get('/get-orders', (req, res) => {
+    Order.find()
+        .populate(['createdBy', 'books'])
+        .then((result) => res.send({ status: 200, success: true, data: result }))
+        .catch((err) => console.log(err))
 })

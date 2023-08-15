@@ -1,15 +1,17 @@
 const mongoose = require('mongoose')
-const { bookSchema } = require('./Book')
+const { ObjectId } = require('mongodb')
 
 const Schema = mongoose.Schema
 
 const orderSchema = new Schema({
     createdBy: {
-        type: mongoose.Types.ObjectId,
+        type: ObjectId,
+        ref: 'users',
         required: true
     },
     books: {
-        type: [bookSchema],
+        type: [ObjectId],
+        ref: 'books',
         required: true
     },
     totalPrice: {
