@@ -56,7 +56,7 @@ app.post('/upload/:id', upload, (req, res) => {
 })
 app.get('/download/:id', (req, res) => {
     Documents.findById(req.params.id)
-        .then((result) => res.download(result.path))
+        .then((result) => result?.path ? res.download(result?.path) : res.send('error'))
         .catch((err) => console.log(err))
 })
 app.get('/users', (req, res) => {
@@ -86,7 +86,7 @@ app.post('/add-user', (req, res) => {
         .catch((err) => console.log(err))
 })
 app.put('/update-user', (req, res) => {
-    User.findByIdAndUpdate(req.body._id, req.body)
+    User.findByIdAndUpdate(req.body._id, req.body, { new: true })
         .then((result) => res.send(result))
         .catch((err) => console.log(err))
 })

@@ -1,3 +1,4 @@
+const { ObjectId } = require('mongodb')
 const mongoose = require('mongoose')
 
 const Schema = mongoose.Schema
@@ -17,6 +18,10 @@ const userSchema = new Schema({
     },
     role: {
         type: String,
+        required: true
+    },
+    profilePicture: {
+        type: ObjectId,
         required: true
     }
 }, { timestamps: true })
