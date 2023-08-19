@@ -9,6 +9,7 @@ const fs = require('fs');
 const { Documents } = require('./models/Documents')
 const bodyParser = require('body-parser')
 const jwt = require('jsonwebtoken')
+const bcrypt = require('bcrypt')
 
 const corsOptions = {
     origin: "http://localhost:3001",
@@ -66,10 +67,11 @@ app.get('/users', (req, res) => {
 })
 app.post('/add-user', (req, res) => {
     User.find({ email: req.body.email })
-        .then((result) => {
+        .then(async (result) => {
             if (result.length) {
                 res.send({ status: 407, success: false, errorMessage: 'Email already used' })
             } else {
+                req.body.password = await bcrypt.hash(req.body.password, 12)
                 const user = new User(req.body)
                 user.save()
                     .then(result => {
@@ -92,6 +94,11 @@ app.put('/update-user', (req, res) => {
 })
 app.get('/books', (req, res) => {
     Book.find()
+        .then(result => res.send(result))
+        .catch(err => res.send(err))
+})
+app.post('/books-category', (req, res) => {
+    Book.find({ category: req.body.category })
         .then(result => res.send(result))
         .catch(err => res.send(err))
 })
@@ -127,9 +134,9 @@ app.delete('/delete-document/:id', (req, res) => {
 })
 app.post('/login', (req, res) => {
     User.find({ email: req.body.email })
-        .then(result => {
+        .then(async (result) => {
             if (result.length > 0) {
-                if (result[0].password === req.body.password) {
+                if (await bcrypt.compare(req.body.password, result[0].password)) {
                     const id = result[0].id
                     const email = result[0].email
                     const token = jwt.sign({ id, email }, 'jwtSecret', {
@@ -179,9 +186,37 @@ app.post('/make-order', (req, res) => {
         .then((result) => res.send({ status: 200, success: true, data: result }))
         .catch((err) => console.log(err))
 })
+app.put('/update-order', (req, res) => {
+    Order.findByIdAndUpdate(req.body._id, req.body, { new: true })
+        .then((result) => res.send({ status: 200, success: true, data: result }))
+        .catch((err) => console.log(err))
+})
 app.get('/get-orders', (req, res) => {
     Order.find()
         .populate(['createdBy', 'books'])
         .then((result) => res.send({ status: 200, success: true, data: result }))
+        .catch((err) => console.log(err))
+})
+app.get('/number-of-users', (req, res) => {
+    User.countDocuments()
+        .then((result) => res.send({ data: result }))
+        .catch((err) => console.log(err))
+})
+app.get('/number-of-orders', (req, res) => {
+    Order.countDocuments()
+        .then((result) => res.send({ data: result }))
+        .catch((err) => console.log(err))
+})
+app.get('/number-of-books', (req, res) => {
+    Book.countDocuments()
+        .then((result) => res.send({ data: result }))
+        .catch((err) => console.log(err))
+})
+app.get('/get-income', (req, res) => {
+    Order.find({ status: 'Accepted' })
+        .then((result) => {
+            let income = result.reduce((sum, item) => sum + item.totalPrice, 0)
+            res.send({ data: income })
+        })
         .catch((err) => console.log(err))
 })
