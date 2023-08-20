@@ -92,6 +92,24 @@ app.put('/update-user', (req, res) => {
         .then((result) => res.send(result))
         .catch((err) => console.log(err))
 })
+app.put('/change-password', async (req, res) => {
+    const match = await User.findById(req.body.currentUser._id)
+        .then(async (result) => {
+            if (await bcrypt.compare(req.body.oldPassword, result.password)) {
+                return true
+            } else {
+                return false
+            }
+        })
+    if (match) {
+        req.body.currentUser.password = await bcrypt.hash(req.body.newPassword, 12)
+        User.findByIdAndUpdate(req.body.currentUser._id, req.body.currentUser, { new: true })
+            .then((result) => res.send({ status: 200, success: true, data: result }))
+            .catch((err) => console.log(err))
+    } else {
+        res.send({ status: 400, success: false })
+    }
+})
 app.get('/books', (req, res) => {
     Book.find()
         .then(result => res.send(result))
